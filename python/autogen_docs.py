@@ -1,12 +1,13 @@
 import os
 import re
 import json
-from typing import Any
+from typing import Any, Iterator
 
 
 DOCS_PATH: str= "test/autogen_docs/docs_test/"
 DOCS_PATTERN: str= DOCS_PATH.replace('/', r"\/")
 DOCS_REGEXP: re.Pattern= re.compile(DOCS_PATTERN)
+DOC_FN: str="README.md"
 OUTPUT_FN: str= "output.md"
 EX_PATTERN: str= r"[Ee]xercise\s?[0-9]+\.[0-9]+"
 EX_REGEXP: re.Pattern= re.compile(EX_PATTERN)
@@ -25,6 +26,13 @@ def ch_relative_path(path: str) -> str:
     return re.sub(fr"{DOCS_PATH}{CHAPTER_PATTERN}\/", "./", path)
 
 
+def parse_md_heading(text: str) -> str:
+    """
+    Parse markdown heading to normal text
+    """
+    return re.sub("^#+", '', text).strip()
+
+
 def extract_erm_content(path: str) -> tuple[str, str, str]:
     """
     Extract the exercise README content
@@ -39,7 +47,7 @@ def extract_erm_content(path: str) -> tuple[str, str, str]:
             if read_mode:
                 content += line
             elif SECTION_REGEXP.search(line.strip()):
-                section_title = re.sub("^#+", '', line).strip()
+                section_title = parse_md_heading(line)
             elif match := EX_REGEXP.search(line.strip()):
                 title = match[0]
                 read_mode = True
@@ -69,38 +77,33 @@ def main():
         "title": None,
         "sections": []
     }
-    current_chapter: str | None = None
     section_data: dict[str, Any] = {
         "title": None,
         "contents": []
     }
-    current_section: str | None = None
 
     def clear_data(data: dict[str, Any]):
         data["title"] = None
         data["contents"].clear()
 
-    for root, subdirs, files in os.walk(DOCS_PATH):
-        subdirs.sort()
-        # print(root)
-        if match := re.search(f"{CHAPTER_PATTERN}$", root):
-            current_chapter = match[0]
-            with open(f"{root}/README.md", "r") as readme:
-                chapter_data["title"] = readme.readline().strip()
-                print(chapter_data["title"])
+    def only_dirs(path: str) -> Iterator[tuple[str, str]]:
+        dirs = list(filter(lambda x: os.path.isdir(os.path.join(path, x)), os.listdir(path)))
+        return zip(dirs, map(lambda x: os.path.join(path, x), dirs))
 
-        elif match := re.search(f"{SECTION_PATTERN}$", root):
-            if current_section and current_section != match[0]:
-                generate_section(f"{root}/README.md", section_data)
-                clear_data(section_data)
-            current_section = match[0]
+    for chapter, cpath in only_dirs(DOCS_PATH):
+        with open(os.path.join(cpath, DOC_FN), "r") as file:
+            chapter_data["title"] = parse_md_heading(file.readline())
+
+        for section, spath in only_dirs(cpath):
+            clear_data(section_data)
             chapter_data["sections"].append({})
-            chapter_data["sections"][len(chapter_data["sections"]) - 1]["relative_link"] = ch_relative_path(root)
+            chapter_data["sections"][len(chapter_data["sections"]) - 1]["relative_link"] = ch_relative_path(spath)
 
-        for file in files:
-            full_path = os.path.join(root, file)
-            if EX_README_REGEXP.search(full_path):
-                content, title, stitle = extract_erm_content(full_path)
+            for exercise, epath in only_dirs(spath):
+                if not DOC_FN in os.listdir(epath):
+                    continue
+
+                content, title, stitle = extract_erm_content(os.path.join(epath, DOC_FN))
 
                 # Set section data
                 if not section_data["title"]: section_data["title"] = stitle
@@ -113,8 +116,44 @@ def main():
                     recent_chapter_data["exercises"] = []
                 recent_chapter_data["exercises"].append({
                     "title": title,
-                    "relative_link": ch_relative_path(root)
+                    "relative_link": ch_relative_path(epath)
                 })
+
+    # for root, subdirs, files in os.walk(DOCS_PATH):
+    #     subdirs.sort()
+    #     # print(root)
+    #     if match := re.search(f"{CHAPTER_PATTERN}$", root):
+    #         current_chapter = match[0]
+    #         with open(f"{root}/README.md", "r") as readme:
+    #             chapter_data["title"] = readme.readline().strip()
+    #             print(chapter_data["title"])
+
+    #     elif match := re.search(f"{SECTION_PATTERN}$", root):
+    #         if current_section and current_section != match[0]:
+    #             generate_section(f"{root}/README.md", section_data)
+    #             clear_data(section_data)
+    #         current_section = match[0]
+    #         chapter_data["sections"].append({})
+    #         chapter_data["sections"][len(chapter_data["sections"]) - 1]["relative_link"] = ch_relative_path(root)
+
+    #     for file in files:
+    #         full_path = os.path.join(root, file)
+    #         if EX_README_REGEXP.search(full_path):
+    #             content, title, stitle = extract_erm_content(full_path)
+
+    #             # Set section data
+    #             if not section_data["title"]: section_data["title"] = stitle
+    #             section_data["contents"].append(content)
+
+    #             # Set chapter data
+    #             recent_chapter_data = chapter_data["sections"][len(chapter_data["sections"]) - 1]
+    #             recent_chapter_data["title"] = stitle
+    #             if not recent_chapter_data.get("exercises"):
+    #                 recent_chapter_data["exercises"] = []
+    #             recent_chapter_data["exercises"].append({
+    #                 "title": title,
+    #                 "relative_link": ch_relative_path(root)
+    #             })
         
     print(json.dumps(chapter_data, indent=2))
         
