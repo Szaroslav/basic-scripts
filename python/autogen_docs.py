@@ -3,7 +3,9 @@ import re
 import json
 from typing import Any, Iterator
 
-
+#
+# Script constants
+#
 DOCS_PATH: str= "test/autogen_docs/docs_test/"
 DOCS_PATTERN: str= DOCS_PATH.replace('/', r"\/")
 DOCS_REGEXP: re.Pattern= re.compile(DOCS_PATTERN)
@@ -58,17 +60,42 @@ def extract_erm_content(path: str) -> tuple[str, str, str]:
 
 def generate_section(path: str, data: dict[str, Any]) -> None:
     with open(path, "w") as file:
-        file.write(f"# {data['title']}\n")
+        file.write(f"# {data['title']}{2 * os.linesep}")
         for i, content in enumerate(data["contents"]):
-            file.write(f"{content}\n")
+            file.write(f"{content}{os.linesep}")
+
+            # Write new lines between solutions
             if i < len(data["contents"]) - 1:
-                file.write("\n\n")
+                file.write(2 * os.linesep)
 
 
-def generate_chapter(path: str, data: dict[str, Any]) -> None:
+def generate_chapter(path: str, data: list[tuple[str, str]]) -> None:
     def generate_section_table(file, data):
-        pass
-    pass
+        def format_cell(text: str, width: int) -> str:
+            return f"{text}{(width - len(text)) * ' '}"
+        
+        SECTION_HEADING, TITLE_HEADING = "Section", "Title"
+        section_width, title_width = len(SECTION_HEADING), len(TITLE_HEADING)
+        for section, title_link in data:
+            section_width = max(section_width, len(section))
+            title_width = max(title_width, len(title_link))
+
+        file.write(f"| {format_cell(SECTION_HEADING, section_width)} | {format_cell(TITLE_HEADING, title_width)} |{os.linesep}")
+        file.write(f"| {section_width * '-'} | {title_width * '-'} |{os.linesep}")
+        for section, title_link in data:
+            file.write(f"| {format_cell(section, section_width)} | {format_cell(title_link, title_width)} |{os.linesep}")
+
+    with open(path, "w") as file:
+        file.write(f"# {data['title']}{2 * os.linesep}")
+
+        sections = []
+        for section in data["sections"]:
+            if match := SECTION_REGEXP.match(section["title"]):
+                sections.append(
+                    (match[0], f"[{section['title'].replace(match[0], '').strip()}]({section['relative_link']})")
+                )
+        
+        generate_section_table(file, sections)
 
 
 def main():
@@ -88,11 +115,15 @@ def main():
 
     def only_dirs(path: str) -> Iterator[tuple[str, str]]:
         dirs = list(filter(lambda x: os.path.isdir(os.path.join(path, x)), os.listdir(path)))
+        dirs.sort()
         return zip(dirs, map(lambda x: os.path.join(path, x), dirs))
 
     for chapter, cpath in only_dirs(DOCS_PATH):
         with open(os.path.join(cpath, DOC_FN), "r") as file:
-            chapter_data["title"] = parse_md_heading(file.readline())
+            for line in file:
+                if CHAPTER_REGEXP.search(line):
+                    chapter_data["title"] = parse_md_heading(line)
+                    break
 
         for section, spath in only_dirs(cpath):
             clear_data(section_data)
@@ -119,43 +150,10 @@ def main():
                     "relative_link": ch_relative_path(epath)
                 })
 
-    # for root, subdirs, files in os.walk(DOCS_PATH):
-    #     subdirs.sort()
-    #     # print(root)
-    #     if match := re.search(f"{CHAPTER_PATTERN}$", root):
-    #         current_chapter = match[0]
-    #         with open(f"{root}/README.md", "r") as readme:
-    #             chapter_data["title"] = readme.readline().strip()
-    #             print(chapter_data["title"])
-
-    #     elif match := re.search(f"{SECTION_PATTERN}$", root):
-    #         if current_section and current_section != match[0]:
-    #             generate_section(f"{root}/README.md", section_data)
-    #             clear_data(section_data)
-    #         current_section = match[0]
-    #         chapter_data["sections"].append({})
-    #         chapter_data["sections"][len(chapter_data["sections"]) - 1]["relative_link"] = ch_relative_path(root)
-
-    #     for file in files:
-    #         full_path = os.path.join(root, file)
-    #         if EX_README_REGEXP.search(full_path):
-    #             content, title, stitle = extract_erm_content(full_path)
-
-    #             # Set section data
-    #             if not section_data["title"]: section_data["title"] = stitle
-    #             section_data["contents"].append(content)
-
-    #             # Set chapter data
-    #             recent_chapter_data = chapter_data["sections"][len(chapter_data["sections"]) - 1]
-    #             recent_chapter_data["title"] = stitle
-    #             if not recent_chapter_data.get("exercises"):
-    #                 recent_chapter_data["exercises"] = []
-    #             recent_chapter_data["exercises"].append({
-    #                 "title": title,
-    #                 "relative_link": ch_relative_path(root)
-    #             })
+            generate_section(os.path.join(spath, DOC_FN), section_data)
+        generate_chapter(os.path.join(cpath, DOC_FN), chapter_data)
         
-    print(json.dumps(chapter_data, indent=2))
+    # print(json.dumps(chapter_data, indent=2))
         
 
 if __name__ == "__main__":
