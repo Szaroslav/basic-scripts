@@ -1,4 +1,4 @@
-# 1.1.1 Compiling and executing our program
+# Section 1.1.1 _Compiling and executing our program_
 
 ## Exercise 1.1
 > Review the documentation for your compiler and determine what file naming convention it uses. Compile and run the `main` program from page 2.

@@ -1,4 +1,4 @@
-# 1.2 A first look at input/output
+# Section 1.2 _A first look at input/output_
 
 ## Exercise 1.4
 
