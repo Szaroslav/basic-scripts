@@ -22,4 +22,3 @@
 ## Section 1.3 _A word about comments_
 - [Exercise 1.7](./section1.3/exercise1.07)
 - [Exercise 1.8](./section1.3/exercise1.08)
-
