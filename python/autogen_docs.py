@@ -6,19 +6,19 @@ from typing import Any, Iterator
 #
 # Script constants
 #
-DOCS_PATH: str= "test/autogen_docs/docs_test/"
-DOCS_PATTERN: str= DOCS_PATH.replace('/', r"\/")
-DOCS_REGEXP: re.Pattern= re.compile(DOCS_PATTERN)
-DOC_FN: str="README.md"
-OUTPUT_FN: str= "output.md"
-EX_PATTERN: str= r"[Ee]xercise\s?[0-9]+\.[0-9]+"
-EX_REGEXP: re.Pattern= re.compile(EX_PATTERN)
-EX_README_PATTERN: str= fr"{EX_PATTERN}\/README\.md$"
-EX_README_REGEXP: re.Pattern= re.compile(EX_README_PATTERN)
-SECTION_PATTERN: str= r"[Ss]ection\s?[0-9]+\.[0-9]+(\.[0-9]+)*"
-SECTION_REGEXP: re.Pattern= re.compile(SECTION_PATTERN)
-CHAPTER_PATTERN: str= r"[Cc]hapter\s?[0-9]+"
-CHAPTER_REGEXP: re.Pattern= re.compile(CHAPTER_PATTERN)
+DOCS_PATH: str                  = "test/autogen_docs/docs_test/"
+DOCS_PATTERN: str               = DOCS_PATH.replace('/', r"\/")
+DOCS_REGEXP: re.Pattern         = re.compile(DOCS_PATTERN)
+DOC_FN: str                     ="README.md"
+OUTPUT_FN: str                  = "output.md"
+EX_PATTERN: str                 = r"[Ee]xercise\s?[0-9]+\.[0-9]+"
+EX_REGEXP: re.Pattern           = re.compile(EX_PATTERN)
+EX_README_PATTERN: str          = fr"{EX_PATTERN}\/README\.md$"
+EX_README_REGEXP: re.Pattern    = re.compile(EX_README_PATTERN)
+SECTION_PATTERN: str            = r"[Ss]ection\s?[0-9]+\.[0-9]+(\.[0-9]+)*"
+SECTION_REGEXP: re.Pattern      = re.compile(SECTION_PATTERN)
+CHAPTER_PATTERN: str            = r"[Cc]hapter\s?[0-9]+"
+CHAPTER_REGEXP: re.Pattern      = re.compile(CHAPTER_PATTERN)
 
 
 def ch_relative_path(path: str) -> str:
@@ -118,8 +118,11 @@ def main():
     }
 
     def clear_data(data: dict[str, Any]):
-        data["title"] = None
-        data["contents"].clear()
+        for key, value in data.items():
+            if isinstance(value, list) or isinstance(value, dict):
+                value.clear()
+            else:
+                data[key] = None
 
     def only_dirs(path: str) -> Iterator[tuple[str, str]]:
         dirs = list(filter(lambda x: os.path.isdir(os.path.join(path, x)), os.listdir(path)))
@@ -127,6 +130,7 @@ def main():
         return zip(dirs, map(lambda x: os.path.join(path, x), dirs))
 
     for chapter, cpath in only_dirs(DOCS_PATH):
+        clear_data(chapter_data)
         with open(os.path.join(cpath, DOC_FN), "r") as file:
             for line in file:
                 if CHAPTER_REGEXP.search(line):
