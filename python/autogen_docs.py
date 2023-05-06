@@ -88,6 +88,7 @@ def generate_chapter(path: str, data: list[tuple[str, str]]) -> None:
     with open(path, "w") as file:
         file.write(f"# {data['title']}{2 * os.linesep}")
 
+        file.write(f"## Sections{2 * os.linesep}")
         sections = []
         for section in data["sections"]:
             if match := SECTION_REGEXP.match(section["title"]):
@@ -96,6 +97,13 @@ def generate_chapter(path: str, data: list[tuple[str, str]]) -> None:
                 )
         
         generate_section_table(file, sections)
+
+        file.write(2 * os.linesep)
+        for section in data["sections"]:
+            file.write(f"## {section['title']}{os.linesep}")
+            for exercise in section["exercises"]:
+                file.write(f"- [{exercise['title']}]({exercise['relative_link']}){os.linesep}")
+            file.write(os.linesep)
 
 
 def main():
