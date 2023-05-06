@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import json
 from typing import Any, Iterator
@@ -110,6 +111,14 @@ def generate_chapter(path: str, data: list[tuple[str, str]]) -> None:
 
 
 def main():
+    root_path = DOCS_PATH
+    if len(sys.argv) > 1:
+        root_path = sys.argv[1]
+        try:
+            os.listdir(root_path)
+        except FileNotFoundError:
+            print(f"[Error] Directory '{root_path}' doesn't exist")
+
     title: str | None = None
     chapter_data: dict[str, Any] = {
         "title": None,
